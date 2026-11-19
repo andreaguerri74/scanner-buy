@@ -129,4 +129,415 @@
       cursor: pointer;
       transition: transform 0.05s ease;
     }
-    button:active { transform: scale(0.98);
+    button:active { transform: scale(0.98); }
+
+    .btn-primary { background: var(--accent); color: #052e16; }
+    .btn-secondary { background: #334155; color: var(--text); }
+    .btn-secondary.active { background: #2563eb; color: #fff; }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 6px 10px; font-size: 0.8rem; }
+
+    .btn-add-cart {
+      width: 100%;
+      padding: 15px 16px;
+      font-size: 1.15rem;
+      letter-spacing: 0.2px;
+      border-radius: 12px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px;
+      border: 1px solid #334155;
+    }
+
+    .result-highlight {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .unit-price {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 86px;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+
+    input, select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #475569;
+      color: var(--text);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .notice-box {
+      font-size: 0.84rem;
+      line-height: 1.35;
+      padding: 9px 11px;
+      border-radius: 9px;
+      margin-bottom: 10px;
+      background: rgba(15, 23, 42, 0.75);
+      border-left: 3px solid var(--warn);
+      color: #fde68a;
+    }
+
+    .notice-box.ok {
+      border-left-color: var(--accent);
+      color: #a7f3d0;
+    }
+
+    .notice-box.err {
+      border-left-color: var(--danger);
+      color: #fecaca;
+    }
+
+    .raw-ocr {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 9px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0.75;
+    }
+
+    .cart-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+
+    .cart-item-sub { font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🛒 Scanner Buy</h1>
+    <div class="cart-badge" onclick="document.getElementById('cartSection').scrollIntoView({behavior:'smooth'})">
+      Totale: <span id="headerTotal">0,00 €</span>
+    </div>
+  </header>
+
+  <div class="camera-box" onclick="scanFrame()">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="reticle">
+      <div class="reticle-label">Inquadra il cartellino (tocca per leggere)</div>
+    </div>
+    <div class="status-pill" id="status">Avvio fotocamera...</div>
+  </div>
+
+  <main>
+    <div class="controls">
+      <button class="btn-primary" onclick="scanFrame()">📸 Leggi ora</button>
+      <button class="btn-secondary" id="autoBtn" onclick="toggleAutoScan()">🔄 Auto-Scan: OFF</button>
+    </div>
+
+    <div class="card">
+      <div class="result-highlight">
+        <span style="color: var(--muted); font-size: 0.9rem;">Prezzo al Kg / Litro</span>
+        <span class="unit-price" id="unitPriceDisplay">-- €/kg</span>
+      </div>
+
+      <div class="inputs-grid">
+        <div>
+          <label for="priceInput">Prezzo (€)</label>
+          <input type="number" id="priceInput" step="0.01" placeholder="2.49" oninput="recalculate()" />
+        </div>
+        <div>
+          <label for="weightInput">Peso / Vol. (opz.)</label>
+          <input type="number" id="weightInput" step="any" placeholder="es. 500" oninput="recalculate()" />
+        </div>
+        <div>
+          <label for="unitSelect">Unità</label>
+          <select id="unitSelect" onchange="recalculate()">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="ml">ml</option>
+            <option value="l">L</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="notice-box" id="noticeBox">
+        Inquadra un cartellino oppure inserisci il prezzo per aggiungere al carrello.
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <input type="text" id="nameInput" placeholder="Nome prodotto (opzionale)" />
+      </div>
+
+      <button class="btn-primary btn-add-cart" onclick="addToCart()">+ Aggiungi al carrello</button>
+      <div class="raw-ocr" id="rawText">OCR: in attesa</div>
+    </div>
+
+    <div class="card" id="cartSection">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>Carrello (<span id="cartCount">0</span>)</strong>
+        <button class="btn-danger" onclick="clearCart()">Svuota</button>
+      </div>
+      <div class="cart-list" id="cartList"></div>
+    </div>
+  </main>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const statusEl = document.getElementById('status');
+
+    let worker = null;
+    let isScanning = false;
+    let autoScanInterval = null;
+    let cart = JSON.parse(localStorage.getItem('scanner_buy_cart') || '[]');
+
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+          audio: false
+        });
+        video.srcObject = stream;
+        statusEl.textContent = 'Caricamento OCR...';
+        worker = await Tesseract.createWorker('ita');
+        statusEl.textContent = 'Scanner Buy pronto';
+      } catch (err) {
+        statusEl.textContent = 'Errore camera: ' + err.message;
+      }
+    }
+
+    async function scanFrame() {
+      if (!worker || isScanning || video.readyState !== 4) return;
+      isScanning = true;
+      statusEl.textContent = 'Lettura in corso...';
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+
+      const cropW = Math.floor(vw * 0.82);
+      const cropH = Math.floor(vh * 0.48);
+      const cropX = Math.floor((vw - cropW) / 2);
+      const cropY = Math.floor((vh - cropH) / 2);
+
+      canvas.width = cropW;
+      canvas.height = cropH;
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+      const imgData = ctx.getImageData(0, 0, cropW, cropH);
+      const d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        const contrasted = gray > 130 ? 255 : (gray < 80 ? 0 : gray);
+        d[i] = d[i + 1] = d[i + 2] = contrasted;
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      try {
+        const { data: { text } } = await worker.recognize(canvas);
+        const cleanLine = text.replace(/\s+/g, ' ').trim();
+        document.getElementById('rawText').textContent = 'OCR: ' + (cleanLine || 'nessun testo');
+        parseLabelText(text);
+        statusEl.textContent = 'Lettura completata';
+      } catch (e) {
+        statusEl.textContent = 'Errore OCR';
+        updateNotice('err', 'Lettura non riuscita: riprova o inserisci il prezzo a mano.');
+      } finally {
+        isScanning = false;
+      }
+    }
+
+    function updateNotice(type, msg) {
+      const box = document.getElementById('noticeBox');
+      box.className = 'notice-box' + (type ? ' ' + type : '');
+      box.textContent = msg;
+    }
+
+    function parseLabelText(raw) {
+      const text = raw.toLowerCase().replace(/,/g, '.');
+
+      const multiMatch = text.match(/(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(kg|gr|g|ml|cl|l)\b/);
+      const weightMatch = text.match(/(?:^|[^a-z])e?\s*(\d+(?:\.\d+)?)\s*(kg|gr|g|ml|cl|l)\b/);
+
+      let foundWeight = false;
+      if (multiMatch) {
+        applyWeight(parseFloat(multiMatch[1]) * parseFloat(multiMatch[2]), multiMatch[3]);
+        foundWeight = true;
+      } else if (weightMatch) {
+        applyWeight(parseFloat(weightMatch[1]), weightMatch[2]);
+        foundWeight = true;
+      }
+
+      const priceMatches = [...text.matchAll(/(?:€|eur)?\s*(\d{1,3}\.\d{2})(?!\d)/g)]
+        .map(m => parseFloat(m[1]))
+        .filter(n => n > 0 && n < 500);
+
+      let foundPrice = false;
+      if (priceMatches.length > 0) {
+        const weightVal = parseFloat(document.getElementById('weightInput').value);
+        const unit = document.getElementById('unitSelect').value;
+        const isUnderOneKg = (unit === 'g' || unit === 'ml') && weightVal < 1000;
+
+        const chosenPrice = (priceMatches.length > 1 && isUnderOneKg)
+          ? Math.min(...priceMatches)
+          : priceMatches[0];
+
+        document.getElementById('priceInput').value = chosenPrice.toFixed(2);
+        foundPrice = true;
+      }
+
+      recalculate();
+
+      if (!foundPrice && !foundWeight) {
+        updateNotice('err', 'Mancano prezzo e peso: inserisci almeno il prezzo per aggiungere al carrello.');
+      } else if (!foundPrice) {
+        updateNotice('err', 'Manca il prezzo (€): inseriscilo per aggiungere al carrello.');
+      } else if (!foundWeight) {
+        updateNotice('', 'Peso/volume non rilevato: puoi comunque aggiungere al carrello, oppure inserisci il peso per il confronto al kg.');
+      } else {
+        updateNotice('ok', 'Prezzo e peso rilevati. Puoi aggiungere al carrello.');
+      }
+    }
+
+    function applyWeight(val, rawUnit) {
+      let unit = rawUnit === 'gr' ? 'g' : rawUnit;
+      if (unit === 'cl') {
+        val = val * 10;
+        unit = 'ml';
+      }
+      document.getElementById('weightInput').value = val;
+      document.getElementById('unitSelect').value = unit;
+    }
+
+    function recalculate() {
+      const price = parseFloat(document.getElementById('priceInput').value);
+      const weight = parseFloat(document.getElementById('weightInput').value);
+      const unit = document.getElementById('unitSelect').value;
+      const display = document.getElementById('unitPriceDisplay');
+
+      if (!price || price <= 0) {
+        display.textContent = '-- €/kg';
+        return { valid: false, price: 0, weight: null, unit, unitPrice: null, labelUnit: unit === 'ml' || unit === 'l' ? 'L' : 'kg' };
+      }
+
+      if (!weight || weight <= 0) {
+        display.textContent = '-- €/kg';
+        return { valid: true, price, weight: null, unit, unitPrice: null, labelUnit: unit === 'ml' || unit === 'l' ? 'L' : 'kg' };
+      }
+
+      let normalizedKgOrL = weight;
+      let labelUnit = 'kg';
+
+      if (unit === 'g') { normalizedKgOrL = weight / 1000; labelUnit = 'kg'; }
+      if (unit === 'kg') { normalizedKgOrL = weight; labelUnit = 'kg'; }
+      if (unit === 'ml') { normalizedKgOrL = weight / 1000; labelUnit = 'L'; }
+      if (unit === 'l') { normalizedKgOrL = weight; labelUnit = 'L'; }
+
+      const unitPrice = price / normalizedKgOrL;
+      display.textContent = `${unitPrice.toFixed(2).replace('.', ',')} €/${labelUnit}`;
+      return { valid: true, price, weight, unit, unitPrice, labelUnit };
+    }
+
+    function toggleAutoScan() {
+      const btn = document.getElementById('autoBtn');
+      if (autoScanInterval) {
+        clearInterval(autoScanInterval);
+        autoScanInterval = null;
+        btn.textContent = '🔄 Auto-Scan: OFF';
+        btn.classList.remove('active');
+      } else {
+        scanFrame();
+        autoScanInterval = setInterval(scanFrame, 1800);
+        btn.textContent = '🔄 Auto-Scan: ON';
+        btn.classList.add('active');
+      }
+    }
+
+    function addToCart() {
+      const calc = recalculate();
+      if (!calc || !calc.valid) {
+        updateNotice('err', 'Manca il prezzo (€): inserisci o leggi il prezzo per aggiungere il prodotto al carrello.');
+        return;
+      }
+      const name = document.getElementById('nameInput').value.trim() || `Prodotto ${cart.length + 1}`;
+      cart.unshift({ id: Date.now(), name, ...calc });
+      saveAndRenderCart();
+
+      document.getElementById('nameInput').value = '';
+      document.getElementById('weightInput').value = '';
+      document.getElementById('priceInput').value = '';
+      recalculate();
+      updateNotice('ok', `"${name}" aggiunto al carrello.`);
+      if (navigator.vibrate) navigator.vibrate(40);
+    }
+
+    function removeItem(id) {
+      cart = cart.filter(item => item.id !== id);
+      saveAndRenderCart();
+    }
+
+    function clearCart() {
+      if (cart.length === 0) return;
+      cart = [];
+      saveAndRenderCart();
+    }
+
+    function saveAndRenderCart() {
+      localStorage.setItem('scanner_buy_cart', JSON.stringify(cart));
+      const list = document.getElementById('cartList');
+      list.innerHTML = '';
+
+      let total = 0;
+      cart.forEach(item => {
+        total += item.price;
+        const unitInfo = (item.weight && item.unitPrice)
+          ? `${item.weight} ${item.unit} (${item.unitPrice.toFixed(2).replace('.', ',')} €/${item.labelUnit})`
+          : 'Peso non indicato';
+        const row = document.createElement('div');
+        row.className = 'cart-item';
+        row.innerHTML = `
+          <div>
+            <div><strong>${item.name}</strong> — ${item.price.toFixed(2).replace('.', ',')} €</div>
+            <div class="cart-item-sub">${unitInfo}</div>
+          </div>
+          <button class="btn-danger" onclick="removeItem(${item.id})">✕</button>
+        `;
+        list.appendChild(row);
+      });
+
+      document.getElementById('cartCount').textContent = cart.length;
+      document.getElementById('headerTotal').textContent = `${total.toFixed(2).replace('.', ',')} €`;
+    }
+
+    saveAndRenderCart();
+    initCamera();
+  </script>
+</body>
+</html>
